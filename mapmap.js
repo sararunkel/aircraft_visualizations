@@ -1,9 +1,12 @@
 // Initialize the map
-const map = L.map('map').setView([0, 0], 2);
+const map = L.map('map',{
+    maxZoom: 18, // Set the maximum zoom level
+    minZoom: 6, // Set the minimum zoom level
+}).setView([0, 0], 2);
 
 // Add a tile layer (OpenStreetMap)
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
     }).addTo(map);
 // Load the JSON data
 fetch('tracktf06.json')
@@ -12,7 +15,7 @@ fetch('tracktf06.json')
     const timeArray = data.coords.Time.data;
     const latitudeArray= data.data_vars.GGLAT.data;
     const longitudeArray= data.data_vars.GGLON.data;
-    const parseTime = d3.timeParse("%Y-%m-%dT%H:%M:%S");
+    const parseTime = d3.utcParse("%Y-%m-%dT%H:%M:%S");
     const parsedData = timeArray.map((time, index) => ({
         Time: parseTime(time),
         latitude: +latitudeArray[index],
@@ -21,8 +24,8 @@ fetch('tracktf06.json')
     // Initialize the plane marker
 const planeIcon = L.icon({
     iconUrl: 'plane.png', // Replace with the path to your plane icon
-    iconSize: [32, 32], // Size of the icon
-    iconAnchor: [16, 16],// Point of the icon which will correspond to marker's location
+    iconSize: [16, 16], // Size of the icon
+    iconAnchor: [8, 8],// Point of the icon which will correspond to marker's location
     className: 'plane-icon' // Class name for styling the icon
     });
 
@@ -30,12 +33,13 @@ const planeIcon = L.icon({
 
     // Fit the map to the bounds of the data
     const bounds = L.latLngBounds(parsedData.map(d => [d.latitude, d.longitude]));
-    map.fitBounds(bounds);
+    const bufferedBounds = bounds.pad(1 / 111);
+    map.fitBounds(bufferedBounds);
     // Set the max bounds to restrict panning
-    map.setMaxBounds(bounds);
+    map.setMaxBounds(bufferedBounds);
     console.log(bounds);
     // Initialize the polyline for the plane's path
-    const planePath = L.polyline([], { color: 'blue' }).addTo(map);
+    const planePath = L.polyline([], { color: 'red' }).addTo(map);
     // Function to calculate bearing between two points
     function calculateBearing(lat1, lon1, lat2, lon2) {
         const toRadians = degrees => degrees * Math.PI / 180;
@@ -72,23 +76,23 @@ const planeIcon = L.icon({
 
         // Calculate the number of data points to display based on the progress
         const totalDataPoints = parsedData.length;
-        const dataPointsToShow = Math.floor(progress * totalDataPoints);
+        const dataPointIndex = Math.floor((currentTime / duration) * totalDataPoints);
 
-        // Filter the data to show only the portion corresponding to the video's progress
-        const currentData = parsedData.slice(0, dataPointsToShow);
-
-        // Update the plane's position and path
-        if (currentData.length > 1) {
-            const nextPoint = currentData[currentData.length - 1];
-            const prevPoint = currentData[currentData.length - 2];
+        // Ensure the index is within bounds
+        if (dataPointIndex >= 0 && dataPointIndex < totalDataPoints) {
+            const nextPoint = parsedData[dataPointIndex];
+            const prevPoint = dataPointIndex > 0 ? parsedData[dataPointIndex - 1] : nextPoint;
             const bearing = calculateBearing(prevPoint.latitude, prevPoint.longitude, nextPoint.latitude, nextPoint.longitude);
-
+    
             // Rotate the plane icon
             const planeIconElement = document.querySelector('.plane-icon');
             planeIconElement.style.transform = `rotate(${bearing}deg)`;
-
+    
             planeMarker.setLatLng([nextPoint.latitude, nextPoint.longitude]);
-            planePath.setLatLngs(currentData.map(d => [d.latitude, d.longitude])); // Update the polyline with the current data
+            planePath.setLatLngs(parsedData.slice(0, dataPointIndex + 1).map(d => [d.latitude, d.longitude])); // Update the polyline with the current data
+    
+            // Print the time value to the screen
+            document.getElementById('current-time').textContent = nextPoint.Time.toISOString();
         }
     });
     // Start the animation

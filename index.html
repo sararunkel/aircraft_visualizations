@@ -2,66 +2,69 @@
 <html lang="en">
 <head>
 <script src="https://d3js.org/d3.v6.js"></script>
+<link rel="stylesheet" href="style.css">
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet-omnivore@0.3.4/leaflet-omnivore.min.js"></script>
-<style>
-    body {
-        display: flex;
-        flex-direction: row;
-        height: 100vh;
-        margin: 0;
-    }
-    main {
-        display: flex;
-        flex-direction: column;
-        flex: 1;
-    }
-    #video-container {
-        flex: 1;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-    }
-    #myVideo {
-        max-width: 100%;
-        height: auto;
-    }
-    #graph-container {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-    }
-    #my_dataviz {
-        flex: 1;
-    }
-    #map {
-        flex: 1;
-        height: 50%;
-    }
-</style>
 </head>
 <body>
+    
     <div id="video-container">
+        <div id="video-title">
+            <h2 class="font1">CAESAR <span class="font2">TF06</span></h2>
+        </div>
         <video id="myVideo" controls>
             <source src="tf06.mp4" type="video/mp4">
             Your browser does not support the video tag.
         </video>
     </div>
+    <div id="overlay">
+        <button id="playButton">Play Video</button>
+    </div>
     <main>
         <div id="graph-container">
             <div id="my_dataviz"></div>
-            <div id="map"></div>
+            <div id="chart2"></div>
+            <div id="map">
+                <div class=" video-overlay">
+                    <h2><span id="current-time"></span></h2>
+                <!-- <h1>Project: CAESAR</h1> -->
+            </div>
+            </div>
         </div>
     </main>
 <script src="mapmap.js"></script>
-<style>
-    .plane-icon {
-    transition: transform 0.1s linear; /* Smooth rotation */
-    }
-</style>
+
 <script src="animatedchart.js"></script>
+<script>
+    // Ensure the video starts playing as soon as the page is fully loaded
+    window.addEventListener('load', function() {
+        const video = document.getElementById('myVideo');
+        const playButton = document.getElementById('playButton');
+        const overlay = document.getElementById('overlay');
+        // Show the play button if autoplay is blocked
+        video.addEventListener('play', function() {
+            overlay.style.display = 'none';
+        });
+
+        video.addEventListener('pause', function() {
+            playButton.style.display = 'block';
+        });
+
+        playButton.addEventListener('click', function() {
+            video.play().catch(error => {
+                console.error('Error attempting to play video:', error);
+            });
+        });
+
+        // Try to autoplay the video
+        video.play().catch(error => {
+            console.error('Autoplay was prevented:', error);
+            overlay.style.display = 'block'; // Show the play button if autoplay is blocked
+        });
+    });
+</script>
 </body>
 </html>

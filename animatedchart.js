@@ -1,193 +1,260 @@
-// set the dimensions and margins of the graph
-const margin = {top: 10, right: 30, bottom: 30, left: 60},
-    width = 460 - margin.left - margin.right,
-    height = 400 - margin.top - margin.bottom;
+class LineChart {
+  constructor(svgSelector, videoSelector, datajson, variable) {
+      this.svg = d3.select(svgSelector);
+      this.selector = svgSelector;
+      this.video = document.getElementById(videoSelector);
+      this.json = datajson;
+      this.variable = variable;
+      this.planeIconUrl = 'plane.png';
+      this.updateDimensions();
+      this.iconWidth = 16;
+      this.yticks =5;
+      this.initChart();
+      this.initVideoSync();
+      // Add resize event listener
+      window.addEventListener('resize', () => this.onResize());
+  }
+  axis(scale, orientation = 'bottom') {
+    if (orientation === 'bottom') {
+      return d3.axisBottom(scale.range([20, this.width - 20]));
+    } else if (orientation === 'left') {
+      return d3.axisLeft(scale);
+    }
+  }
+  initChart() {
+      const { svg, margin, width, height, data } = this;
 
-// append the svg object to the body of the page
-const svg = d3.select("#my_dataviz")
-  .append("svg")
-    .attr("width", width + margin.left + margin.right)
-    .attr("height", height + margin.top + margin.bottom)
-  .append("g")
-    .attr("transform",
-          `translate(${margin.left}, ${margin.top})`);
+      // Append the svg object to the body of the page
+      this.svg = svg.append("svg")
+          .attr("class", "line-chart")
+          .attr("width", width + margin.left + margin.right)
+          .attr("height", height + margin.top + margin.bottom)
+          .append("g")
+          .attr("transform", `translate(${margin.left},${margin.top})`);
+    d3.json(this.json).then((DATA) => {
+            //console.log(DATA);
+              // Parse the date and value from the JSON
+              // Extract the Time and data arrays
+              const timeArray = DATA.coords.Time.data;
+              const dataArray = DATA.data;
+              const parseTime = d3.utcParse("%Y-%m-%dT%H:%M:%S");
+              // Transform the data into an array of objects
+              this.data = dataArray.map((value, index) => ({
+                Time: parseTime(timeArray[index]),
+                data: +value
+              }));
+      // Add X axis
+      console.log(this.data)
+      // Add X axis
+    this.x = d3.scaleUtc()
+    .domain(d3.extent(this.data, d => d.Time))
+    .range([0, width]);
+    this.xAxisGenerator = this.axis(this.x, 'bottom')
+        .ticks(d3.timeMinute.every(15)); // Set ticks every 15 minutes
 
-//Read the data
-d3.json("ATXtf06.json").then(
-  // When reading the csv, I must format variables:
-    // Parse the date and value from the JSON
+    this.xAxis = this.svg.append("g")
+        .attr("transform", `translate(0,${height})`)
+        .call(this.xAxisGenerator);
 
-  // Now I can use this dataset:
-    function(data) {
-    // Extract the Time and data arrays
-    const timeArray = data.coords.Time.data;
-    const dataArray = data.data;
-    const parseTime = d3.timeParse("%Y-%m-%dT%H:%M:%S");
-    // Transform the data into an array of objects
-    const transformedData = dataArray.map((value, index) => ({
-      Time: parseTime(timeArray[index]),
-      data: +value
-    }));
-    console.log(transformedData);
-    // Add X axis --> it is a date format
-    const x = d3.scaleTime()
-      .domain(d3.extent(transformedData, function(d) { return d.Time; }))
-      .range([ 0, width ]);
-    xAxis = svg.append("g")
-      .attr("transform", `translate(0, ${height})`)
-      .call(d3.axisBottom(x));
+    // Add X axis label
+    this.svg.append("text")
+        .attr("text-anchor", "middle")
+        .attr("x", width / 2)
+        .attr("y", height + margin.top + 20)
+        .text("Time");
 
     // Add Y axis
-    const y = d3.scaleLinear()
-      .domain([d3.min(transformedData, function(d) { return +d.data; }), d3.max(transformedData, function(d) { return +d.data; })])
-      .range([ height, 0 ]);
-    yAxis = svg.append("g")
-      .call(d3.axisLeft(y));
+    this.y = d3.scaleLinear()
+        .domain([d3.min(this.data, d => d.data), d3.max(this.data, d => d.data)])
+        .range([height, 0]);
+    this.yAxisGenerator = this.axis(this.y, 'left')
+        .ticks(this.yticks);
 
-    // Add a clipPath: everything out of this area won't be drawn.
-    const clip = svg.append("defs").append("svg:clipPath")
+    this.yAxis = this.svg.append("g")
+        .attr("class", "y-axis")
+        .call(this.yAxisGenerator);
+
+    // Add Y axis label
+    this.svg.append("text")
+        .attr("text-anchor", "middle")
+        .attr("transform", "rotate(-90)")
+        .attr("y", -margin.left + 20)
+        .attr("x", - height / 2 )
+        .text(this.variable);
+    // Add gridlines
+    const makeXGridlines = () => d3.axisBottom(this.x).ticks(d3.timeMinute.every(15));
+    const makeYGridlines = () => d3.axisLeft(this.y).ticks(5);
+
+    // Add X gridlines
+    this.svg.append("g")
+        .attr("class", "x-grid grid")
+        .attr("transform", `translate(0,${height})`)
+        .call(makeXGridlines()
+            .tickSize(-height)
+            .tickFormat(""));
+
+    // Add Y gridlines
+    this.svg.append("g")
+        .attr("class", "y-grid grid")
+        .call(makeYGridlines()
+            .tickSize(-width)
+            .tickFormat(""));
+      //add axis labels https://observablehq.com/@jeantimex/simple-line-chart-with-axis-labels
+      // Add brushing
+          // A function that updates the chart for given boundaries
+    
+
+      this.brush = d3.brushX()                   // Add the brush feature using the d3.brush function
+        .extent( [ [0,0], [width,height] ] )  // initialise the brush area: start at 0,0 and finishes at width,height: it means I select the whole graph area
+        .on("end", this.updateChart.bind(this))               // Each time the brush selection changes, trigger the 'updateChart' function
+      
+//
+      // Add a clipPath: everything out of this area won't be drawn.
+      this.clip = this.svg.append("defs").append("svg:clipPath")
         .attr("id", "clip")
         .append("svg:rect")
         .attr("width", width )
         .attr("height", height )
         .attr("x", 0)
         .attr("y", 0);
-
-    // Add brushing
-    const brush = d3.brushX()                   // Add the brush feature using the d3.brush function
-        .extent( [ [0,0], [width,height] ] )  // initialise the brush area: start at 0,0 and finishes at width,height: it means I select the whole graph area
-        .on("end", updateChart)               // Each time the brush selection changes, trigger the 'updateChart' function
-
-    // Create the line variable: where both the line and the brush take place
-    const line = svg.append('g')
-      .attr("clip-path", "url(#clip)")
-
-    // Add the line
-    line.append("path")
-      .datum(transformedData)
-      .attr("class", "line")  // I add the class line to be able to modify this line later on.
-      .attr("fill", "none")
-      .attr("stroke", "steelblue")
-      .attr("stroke-width", 1.5)
-      .attr("d", d3.line()
-        .x(function(d) { return x(d.Time) })
-        .y(function(d) { return y(d.data) })
-        )
-
-    // Add the brushing
-    line
-      .append("g")
-        .attr("class", "brush")
-        .call(brush);
-
-    // A function that set idleTimeOut to null
-    let idleTimeout
-    function idled() { idleTimeout = null; }
-
-    // A function that update the chart for given boundaries
-    function updateChart(event,d) {
-
-      // What are the selected boundaries?
-      extent = event.selection
-
-      // If no selection, back to initial coordinate. Otherwise, update X axis domain
-      if(!extent){
-        if (!idleTimeout) return idleTimeout = setTimeout(idled, 350); // This allows to wait a little bit
-        x.domain([ 4,8])
-      }else{
-        x.domain([ x.invert(extent[0]), x.invert(extent[1]) ])
-        line.select(".brush").call(brush.move, null) // This remove the grey brush area as soon as the selection has been done
-      }
-
-      // Update axis and line position
-      xAxis.transition().duration(1000).call(d3.axisBottom(x))
-      line
-          .select('.line')
-          .transition()
-          .duration(1000)
+      // Add the line
+      //Create the line variable: where both the line and the brush take place
+      this.line = this.svg.append('g')
+        .attr("clip-path", "url(#clip)")
+      this.line.append("path")
+          .datum(this.data)
+          .attr("class", "line")  
+          .attr("fill", "none")
+          .attr("stroke", "steelblue")
+          .attr("stroke-width", 1.5)
           .attr("d", d3.line()
-            .x(function(d) { return x(d.Time) })
-            .y(function(d) { return y(d.data) })
-          )
-    }
+              .x(d => this.x(d.Time))
+              .y(d => this.y(d.data))
+          );
+      // Add the brushing
+      this.line.append("g")
+          .attr("class", "brush")
+          .call(this.brush);
 
-    // If user double click, reinitialize the chart
-    svg.on("dblclick",function(){
-      x.domain(d3.extent(transformedData, function(d) { return d.Time; }))
-      xAxis.transition().call(d3.axisBottom(x))
-      line
-        .select('.line')
-        .transition()
-        .attr("d", d3.line()
-          .x(function(d) { return x(d.Time) })
-          .y(function(d) { return y(d.data) })
-      )
-    });
-    const tooltip = d3.select("#my_dataviz")
-    .append("div")
-    .style("opacity", 0)
-    .attr("class", "tooltip")
-    .style("background-color", "white")
-    .style("border", "solid")
-    .style("border-width", "1px")
-    .style("border-radius", "5px")
-    .style("padding", "10px")
+      // Add the plane icon
+      this.planeIcon = this.svg.append("image")
+          .attr("xlink:href", this.planeIconUrl)
+          .attr("width", this.iconWidth)
+          .attr("height", this.iconWidth)
+          .attr("x", this.x(this.data[this.data.length - 1].Time) - this.iconWidth / 2) 
+          .attr("y", this.y(this.data[this.data.length - 1].data) - this.iconWidth / 2);  
+      // A function that set idleTimeOut to null
 
 
-
-  // A function that change this tooltip when the user hover a point.
-  // Its opacity is set to 1: we can now see it. Plus it set the text and position of tooltip depending on the datapoint (d)
-  const mouseover = function(event, d) {
-    tooltip
-      .style("opacity", 1)
-  }
-
-  const mousemove = function(event, d) {
-    tooltip
-      .html(`Temperature (C): ${d.GrLivArea}`)
-      .style("left", (event.x)/2 + "px") // It is important to put the +90: other wise the tooltip is exactly where the point is an it creates a weird effect
-      .style("top", (event.y)/2 + "px")
-  }
-
-  // A function that change this tooltip when the leaves a point: just need to set opacity to 0 again
-  const mouseleave = function(event,d) {
-    tooltip
+    // If user double clicks, reinitialize the chart
+    this.svg.on("dblclick", () => {
+      this.x.domain(d3.extent(this.data, d => d.Time));
+      this.xAxis.transition().call(this.axis(this.x, 'bottom').ticks(d3.timeMinute.every(15)));
+      this.line.select("path")
       .transition()
-      .duration(200)
-      .style("opacity", 0)
+      .attr("d", d3.line()
+        .x(d => this.x(d.Time))
+        .y(d => this.y(d.data))
+      );
+      this.updateGridlines(0);
+    });
+
+  }); //end of d3.json
+}
+idled() {
+  this.idleTimeout = null;
+}
+
+updateChart(event) {
+  const extent = event.selection;
+
+  // If no selection, back to initial coordinate. Otherwise, update X axis domain
+  if (!extent) {
+    if (!this.idleTimeout) return this.idleTimeout = setTimeout(this.idled.bind(this), 350); // This allows to wait a little bit
+    this.x.domain([4,8]);
+  } else {
+    this.x.domain([this.x.invert(extent[0]), this.x.invert(extent[1])]);
+    this.line.select(".brush").call(this.brush.move, null); // This removes the grey brush area as soon as the selection has been done
   }
-  // svg.selectAll("dot")
-  //   .data(transformedData)
-  //   .enter().append("circle")
-  //     .attr("r", 5)
-  //     .attr("cx", function(d) { return x(d.Time); })
-  //     .attr("cy", function(d) { return y(d.data); })
-  //     .on("mouseover", mouseover)
-  //     .on("mousemove", mousemove)
-  //     .on("mouseleave", mouseleave);
-    // Sync with video
-    const video = document.getElementById('myVideo');
-    video.addEventListener('timeupdate', function() {
-      console.log(video.cur);
-      const currentTime = video.currentTime;
-      let progress = currentTime / video.duration;
+
+  // Update axis and line position
+  this.xAxis.transition().duration(1000).call(this.axis(this.x, 'bottom').ticks(this.yticks));
+  this.line.select("path")
+  .transition()
+  .duration(1000)
+  .attr("d", d3.line()
+    .x(d => this.x(d.Time))
+    .y(d => this.y(d.data))
+  );
+  this.updateGridlines();
+};
+updateGridlines(duration = 1000) {
+  // Update X gridlines
+  this.svg.select(".x-grid")
+    .transition()
+    .duration(duration)
+    .call(d3.axisBottom(this.x)
+      .ticks(d3.timeMinute.every(15))
+      .tickSize(-this.height)
+      .tickFormat(""));
+
+  // Update Y gridlines
+  this.svg.select(".y-grid")
+    .transition()
+    .duration(duration)
+    .call(d3.axisLeft(this.y)
+      .ticks(this.yticks)
+      .tickSize(-this.width)
+      .tickFormat(""));
+}
+initVideoSync() {
+  this.video.addEventListener('timeupdate', () => {
+      const currentTime = this.video.currentTime;
+      const duration = this.video.duration;
+      const progress = currentTime / duration;
 
       // Calculate the number of data points to display based on the progress
-      const totalDataPoints = transformedData.length;
+      const totalDataPoints = this.data.length;
       const dataPointsToShow = Math.floor(progress * totalDataPoints);
+
       // Filter the data to show only the portion corresponding to the video's progress
-      const currentData = transformedData.slice(0, dataPointsToShow);
+      const currentData = this.data.slice(0, dataPointsToShow);
+
       // Update the line chart
-      line
-        .select('.line')
-        .datum(currentData)
-        .attr("d", d3.line()
-          .x(function(d) { return x(d.Time) })
-          .y(function(d) { return y(d.data) })
-        );
-    });
+      this.line.select(".line").datum(currentData)
+          .attr("d", d3.line()
+              .x(d => this.x(d.Time))
+              .y(d => this.y(d.data))
+          );
 
-})
+      // Update the plane icon position
+      if (currentData.length > 0) {
+          const latestData = currentData[currentData.length - 1];
+          this.planeIcon
+              .attr("x", this.x(latestData.Time) - this.iconWidth / 2)
+              .attr("y", this.y(latestData.data) - this.iconWidth / 2);
+      }
+  });
+}
+updateDimensions() {
+  this.margin = { top: 20, right: 20, bottom: 50, left: 50 };
+  this.width = window.innerWidth/2 - this.margin.left - this.margin.right;
+  this.height = window.innerHeight / 4 - this.margin.top - this.margin.bottom;
+}
+onResize() {
+  // Update dimensions
+  this.updateDimensions();
 
-//html video events
-//set current time to ten --- normalized progress from chart to get to video
+  // Update SVG dimensions
+  d3.select(this.selector).select("svg")
+      .attr("width", this.width + this.margin.left + this.margin.right)
+      .attr("height", this.height + this.margin.top + this.margin.bottom);
+
+  this.updateChart();
+}
+
+
+}
+
+const chart1 = new LineChart("#my_dataviz", "myVideo", "ATXtf06.json", 'Temperature (C)');
+const chart2 = new LineChart("#chart2", "myVideo", "WICtf06.json", "Wind Speed (m/s)");
