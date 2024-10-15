@@ -35,11 +35,7 @@ body {
     font-family: Arial, sans-serif; /* Change font */
 }
 .line-chart {
-    border: 2px solid lightgray; /* Add gray border */
-    border-radius: 10px; /* Add rounded corners */
-    background-color: #dedede27; /* Dark background color */
-    padding: 10px; /* Add padding */
-    padding-bottom: 3px;
+    
     z-index: 1;
 }
 main {
@@ -54,7 +50,7 @@ main {
     flex-direction: column;
     justify-content: left;
     align-items: left;
-    height: calc(100vh - 80px);
+    height: calc(100vh - 60px);
     
 }
 .video-overlay {
@@ -85,8 +81,12 @@ main {
     flex: 1;
     display: flex;
     flex-direction: column;
-    padding: 10px;
-    padding-bottom: 20px;
+    border: 2px solid lightgray; /* Add gray border */
+    border-radius: 10px; /* Add rounded corners */
+    background-color: #dedede27; /* Dark background color */
+    padding: 10px; /* Add padding */
+    padding-bottom: 3px;
+    margin: 5px;
 }
 #my_dataviz {
     flex: 1;
@@ -101,6 +101,7 @@ main {
     border-radius: 10px; /* Add rounded corners */
     background-color: #dedede27; /* Dark background color */
     padding: 10px; /* Add padding */
+    margin: 5px
 }
 .row {
     flex: 1;

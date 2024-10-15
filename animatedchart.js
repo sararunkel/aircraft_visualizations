@@ -22,15 +22,14 @@ class LineChart {
     }
   }
   initChart() {
-      const { svg, margin, width, height, data } = this;
-
+      const {svg} = this;
       // Append the svg object to the body of the page
       this.svg = svg.append("svg")
           .attr("class", "line-chart")
-          .attr("width", width + margin.left + margin.right)
-          .attr("height", height + margin.top + margin.bottom)
+          .attr("width", this.width + this.margin.left + this.margin.right)
+          .attr("height", this.height + this.margin.top + this.margin.bottom)
           .append("g")
-          .attr("transform", `translate(${margin.left},${margin.top})`);
+          .attr("transform", `translate(${this.margin.left},${this.margin.top})`);
     d3.json(this.json).then((DATA) => {
             //console.log(DATA);
               // Parse the date and value from the JSON
@@ -44,29 +43,28 @@ class LineChart {
                 data: +value
               }));
       // Add X axis
-      console.log(this.data)
+      console.log(this.width)
       // Add X axis
-    this.x = d3.scaleUtc()
-    .domain(d3.extent(this.data, d => d.Time))
-    .range([0, width]);
+    this.x = d3.scaleUtc().domain(d3.extent(this.data, d => d.Time)).range([0, this.width]);
     this.xAxisGenerator = this.axis(this.x, 'bottom')
-        .ticks(d3.timeMinute.every(15)); // Set ticks every 15 minutes
+        .ticks(d3.utcMinute.every(15)); // Set ticks every 15 minutes
 
     this.xAxis = this.svg.append("g")
-        .attr("transform", `translate(0,${height})`)
+        .attr("transform", `translate(0,${this.height})`)
         .call(this.xAxisGenerator);
 
     // Add X axis label
     this.svg.append("text")
+        .attr("class", "x-axis-label")
         .attr("text-anchor", "middle")
-        .attr("x", width / 2)
-        .attr("y", height + margin.top + 20)
+        .attr("x", this.width / 2)
+        .attr("y", this.height + this.margin.top + 20)
         .text("Time");
 
     // Add Y axis
     this.y = d3.scaleLinear()
         .domain([d3.min(this.data, d => d.data), d3.max(this.data, d => d.data)])
-        .range([height, 0]);
+        .range([this.height, 0]);
     this.yAxisGenerator = this.axis(this.y, 'left')
         .ticks(this.yticks);
 
@@ -76,10 +74,11 @@ class LineChart {
 
     // Add Y axis label
     this.svg.append("text")
+        .attr("class", "y-axis-label")
         .attr("text-anchor", "middle")
         .attr("transform", "rotate(-90)")
-        .attr("y", -margin.left + 20)
-        .attr("x", - height / 2 )
+        .attr("y", -this.margin.left + 20)
+        .attr("x", - this.height / 2 )
         .text(this.variable);
     // Add gridlines
     const makeXGridlines = () => d3.axisBottom(this.x).ticks(d3.timeMinute.every(15));
@@ -88,16 +87,16 @@ class LineChart {
     // Add X gridlines
     this.svg.append("g")
         .attr("class", "x-grid grid")
-        .attr("transform", `translate(0,${height})`)
+        .attr("transform", `translate(0,${this.height})`)
         .call(makeXGridlines()
-            .tickSize(-height)
+            .tickSize(-this.height)
             .tickFormat(""));
 
     // Add Y gridlines
     this.svg.append("g")
         .attr("class", "y-grid grid")
         .call(makeYGridlines()
-            .tickSize(-width)
+            .tickSize(-this.width)
             .tickFormat(""));
       //add axis labels https://observablehq.com/@jeantimex/simple-line-chart-with-axis-labels
       // Add brushing
@@ -105,16 +104,16 @@ class LineChart {
     
 
       this.brush = d3.brushX()                   // Add the brush feature using the d3.brush function
-        .extent( [ [0,0], [width,height] ] )  // initialise the brush area: start at 0,0 and finishes at width,height: it means I select the whole graph area
+        .extent( [ [0,0], [this.width,this.height] ] )  // initialise the brush area: start at 0,0 and finishes at width,height: it means I select the whole graph area
         .on("end", this.updateChart.bind(this))               // Each time the brush selection changes, trigger the 'updateChart' function
       
 //
-      // Add a clipPath: everything out of this area won't be drawn.
+      // // Add a clipPath: everything out of this area won't be drawn.
       this.clip = this.svg.append("defs").append("svg:clipPath")
         .attr("id", "clip")
         .append("svg:rect")
-        .attr("width", width )
-        .attr("height", height )
+        .attr("width", this.width )
+        .attr("height", this.height )
         .attr("x", 0)
         .attr("y", 0);
       // Add the line
@@ -149,7 +148,7 @@ class LineChart {
     // If user double clicks, reinitialize the chart
     this.svg.on("dblclick", () => {
       this.x.domain(d3.extent(this.data, d => d.Time));
-      this.xAxis.transition().call(this.axis(this.x, 'bottom').ticks(d3.timeMinute.every(15)));
+      this.xAxis.transition().call(this.axis(this.x, 'bottom').ticks(d3.utcMinute.every(15)));
       this.line.select("path")
       .transition()
       .attr("d", d3.line()
@@ -193,6 +192,7 @@ updateGridlines(duration = 1000) {
   this.svg.select(".x-grid")
     .transition()
     .duration(duration)
+    .attr("transform", `translate(0,${this.height})`)
     .call(d3.axisBottom(this.x)
       .ticks(d3.timeMinute.every(15))
       .tickSize(-this.height)
@@ -240,17 +240,59 @@ updateDimensions() {
   this.margin = { top: 20, right: 20, bottom: 50, left: 50 };
   this.width = window.innerWidth/2 - this.margin.left - this.margin.right;
   this.height = window.innerHeight / 4 - this.margin.top - this.margin.bottom;
+  
+}
+updateAxes() {
+  this.x.range([0, this.width]);
+  this.y.range([this.height, 0]);
+  this.x.domain(d3.extent(this.data, d => d.Time));
+  this.y.domain([d3.min(this.data, d => d.data), d3.max(this.data, d => d.data)]);
+  // Update the x-axis
+  this.xAxis
+    .attr("transform", `translate(0,${this.height})`)
+    .call(this.axis(this.x, 'bottom').ticks(d3.utcMinute.every(15)));
+  
+  // Update the y-axis
+  this.yAxis.call(d3.axisLeft(this.y).ticks(this.yticks));
+  this.svg.select(".x-axis-label")
+    .attr("x", this.width / 2)
+    .attr("y", this.height + this.margin.top + 20);
+  this.svg.select(".y-axis-label")
+    .attr("y", -this.margin.left + 20)
+    .attr("x", - this.height / 2 );
 }
 onResize() {
   // Update dimensions
   this.updateDimensions();
-
+  
   // Update SVG dimensions
   d3.select(this.selector).select("svg")
       .attr("width", this.width + this.margin.left + this.margin.right)
       .attr("height", this.height + this.margin.top + this.margin.bottom);
+  // Update the clip path dimensions
+  this.clip
+      .attr("width", this.width)
+      .attr("height", this.height);
+  this.updateAxes();
+  this.updateGridlines(0);
+  //this.xAxis.transition().call(this.axis(this.x, 'bottom').ticks(d3.timeMinute.every(15)));
+  this.line.select("path")
+    .transition()
+    .attr("d", d3.line()
+      .x(d => this.x(d.Time))
+      .y(d => this.y(d.data))
+    );
+    
+    
+    // Update the brush extent
+    this.brush.extent([[0, 0], [this.width, this.height]]);
 
-  this.updateChart();
+    console.log(this.width)
+
+    // Reapply the brush to the chart
+    this.svg.select(".brush")
+        .call(this.brush);
+  
 }
 
 
