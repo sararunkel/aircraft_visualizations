@@ -43,7 +43,6 @@ class LineChart {
                 data: +value
               }));
       // Add X axis
-      console.log(this.width)
       // Add X axis
     this.x = d3.scaleUtc().domain(d3.extent(this.data, d => d.Time)).range([0, this.width]);
     this.xAxisGenerator = this.axis(this.x, 'bottom')
@@ -287,7 +286,6 @@ onResize() {
     // Update the brush extent
     this.brush.extent([[0, 0], [this.width, this.height]]);
 
-    console.log(this.width)
 
     // Reapply the brush to the chart
     this.svg.select(".brush")

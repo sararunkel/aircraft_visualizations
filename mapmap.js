@@ -93,8 +93,52 @@ const planeIcon = L.icon({
     
             // Print the time value to the screen
             document.getElementById('current-time').textContent = nextPoint.Time.toISOString();
+            updateImage(nextPoint.Time, 'F2DS');
+            updateImage(nextPoint.Time, 'HVPS');
         }
     });
+    let imageFilenames = [];
+    //read TF06.txt file and safe the image filenames
+    fetch('TF06.txt')
+    .then(response => response.text())
+    .then(data => {
+        imageFilenames = data.split('\n').filter(Boolean);
+        console.log(imageFilenames);
+    });
+    
+
+    function parseFilename(filename) {
+        const parts = filename.split('_');
+        const date = parts[2];
+        const start = parseFileTime(date, parts[3]);
+        const end = parseFileTime(date, parts[5]);
+        return [start, end];
+    }
+
+    function parseFileTime(dateString, timeString) {
+        const year = parseInt(dateString.slice(0, 4), 10);
+        const month = parseInt(dateString.slice(4, 6), 10) - 1; // Months are zero-based in JavaScript
+        const day = parseInt(dateString.slice(6, 8), 10);
+        const hours = parseInt(timeString.slice(0, 2), 10);
+        const minutes = parseInt(timeString.slice(2, 4), 10);
+        const seconds = parseInt(timeString.slice(4, 6), 10);
+        return new Date(Date.UTC(year, month, day, hours, minutes, seconds));
+    }
+
+    function updateImage(currentTime,dtype) {
+        const imageContainer = document.getElementById(dtype);
+        const filteredImages = imageFilenames.filter(filename => filename.includes(dtype));
+        const currentImage = filteredImages.find(filename => {
+            const [start, end] = parseFilename(filename);
+            console.log(start, end);
+            console.log('currentTime:', currentTime);
+            return start <= currentTime && currentTime <= end;
+        });
+        if (currentImage) {
+            imageContainer.innerHTML = `<img src="TF06/${currentImage}" alt=dtype>`;
+        }
+    }
     // Start the animation
     //animatePlane();
 })
+
