@@ -10,7 +10,8 @@ class LineChart {
       this.iconWidth = 16;
       this.yticks =5;
       this.initChart();
-      this.initVideoSync();
+      this.progress = 0;
+      
       // Add resize event listener
       window.addEventListener('resize', () => this.onResize());
   }
@@ -42,72 +43,17 @@ class LineChart {
                 Time: parseTime(timeArray[index]),
                 data: +value
               }));
-      // Add X axis
-      // Add X axis
-    this.x = d3.scaleUtc().domain(d3.extent(this.data, d => d.Time)).range([0, this.width]);
-    this.xAxisGenerator = this.axis(this.x, 'bottom')
-        .ticks(d3.utcMinute.every(15)); // Set ticks every 15 minutes
+      this.createAxes();
+      this.addGridLabels();
+      this.initVideoSync();
 
-    this.xAxis = this.svg.append("g")
-        .attr("transform", `translate(0,${this.height})`)
-        .call(this.xAxisGenerator);
-
-    // Add X axis label
-    this.svg.append("text")
-        .attr("class", "x-axis-label")
-        .attr("text-anchor", "middle")
-        .attr("x", this.width / 2)
-        .attr("y", this.height + this.margin.top + 20)
-        .text("Time");
-
-    // Add Y axis
-    this.y = d3.scaleLinear()
-        .domain([d3.min(this.data, d => d.data), d3.max(this.data, d => d.data)])
-        .range([this.height, 0]);
-    this.yAxisGenerator = this.axis(this.y, 'left')
-        .ticks(this.yticks);
-
-    this.yAxis = this.svg.append("g")
-        .attr("class", "y-axis")
-        .call(this.yAxisGenerator);
-
-    // Add Y axis label
-    this.svg.append("text")
-        .attr("class", "y-axis-label")
-        .attr("text-anchor", "middle")
-        .attr("transform", "rotate(-90)")
-        .attr("y", -this.margin.left + 20)
-        .attr("x", - this.height / 2 )
-        .text(this.variable);
-    // Add gridlines
-    const makeXGridlines = () => d3.axisBottom(this.x).ticks(d3.timeMinute.every(15));
-    const makeYGridlines = () => d3.axisLeft(this.y).ticks(5);
-
-    // Add X gridlines
-    this.svg.append("g")
-        .attr("class", "x-grid grid")
-        .attr("transform", `translate(0,${this.height})`)
-        .call(makeXGridlines()
-            .tickSize(-this.height)
-            .tickFormat(""));
-
-    // Add Y gridlines
-    this.svg.append("g")
-        .attr("class", "y-grid grid")
-        .call(makeYGridlines()
-            .tickSize(-this.width)
-            .tickFormat(""));
       //add axis labels https://observablehq.com/@jeantimex/simple-line-chart-with-axis-labels
       // Add brushing
           // A function that updates the chart for given boundaries
-    
-
       this.brush = d3.brushX()                   // Add the brush feature using the d3.brush function
         .extent( [ [0,0], [this.width,this.height] ] )  // initialise the brush area: start at 0,0 and finishes at width,height: it means I select the whole graph area
         .on("end", this.updateChart.bind(this))               // Each time the brush selection changes, trigger the 'updateChart' function
-      
-//
-      // // Add a clipPath: everything out of this area won't be drawn.
+      // Add a clipPath: everything out of this area won't be drawn.
       this.clip = this.svg.append("defs").append("svg:clipPath")
         .attr("id", "clip")
         .append("svg:rect")
@@ -147,7 +93,7 @@ class LineChart {
     // If user double clicks, reinitialize the chart
     this.svg.on("dblclick", () => {
       this.x.domain(d3.extent(this.data, d => d.Time));
-      this.xAxis.transition().call(this.axis(this.x, 'bottom').ticks(d3.utcMinute.every(15)));
+      this.xAxis.transition().call(this.axis(this.x, 'bottom').ticks(d3.utcMinute.every(30)));
       this.line.select("path")
       .transition()
       .attr("d", d3.line()
@@ -161,6 +107,64 @@ class LineChart {
 }
 idled() {
   this.idleTimeout = null;
+}
+createAxes() {
+// Add Y axis
+  this.y = d3.scaleLinear()
+    .domain([d3.min(this.data, d => d.data), d3.max(this.data, d => d.data)])
+    .range([this.height, 0]);
+  this.yAxisGenerator = this.axis(this.y, 'left')
+    .ticks(this.yticks);
+
+  this.yAxis = this.svg.append("g")
+    .attr("class", "y-axis")
+    .call(this.yAxisGenerator);
+
+
+  // Add X axis
+  this.x = d3.scaleUtc().domain(d3.extent(this.data, d => d.Time)).range([0, this.width]);
+    this.xAxisGenerator = this.axis(this.x, 'bottom')
+        .ticks(d3.utcMinute.every(30)); // Set ticks every 15 minutes
+
+    this.xAxis = this.svg.append("g")
+        .attr("transform", `translate(0,${this.height})`)
+        .call(this.xAxisGenerator);
+}
+
+addGridLabels() {
+  // Add gridlines
+  const makeXGridlines = () => d3.axisBottom(this.x).ticks(d3.timeMinute.every(30));
+  const makeYGridlines = () => d3.axisLeft(this.y).ticks(this.yticks);
+
+   // Add X axis label
+  this.svg.append("text")
+    .attr("class", "x-axis-label")
+    .attr("text-anchor", "middle")
+    .attr("x", this.width / 2)
+    .attr("y", this.height + this.margin.top + 20)
+    .text("Time");
+  // Add Y axis label
+  this.svg.append("text")
+    .attr("class", "y-axis-label")
+    .attr("text-anchor", "middle")
+    .attr("transform", "rotate(-90)")
+    .attr("y", -this.margin.left + 20)
+    .attr("x", - this.height / 2 )
+    .text(this.variable);
+  // Add X gridlines
+  this.svg.append("g")
+    .attr("class", "x-grid grid")
+    .attr("transform", `translate(0,${this.height})`)
+    .call(makeXGridlines()
+        .tickSize(-this.height)
+        .tickFormat(""));
+
+  // Add Y gridlines
+  this.svg.append("g")
+    .attr("class", "y-grid grid")
+    .call(makeYGridlines()
+        .tickSize(-this.width)
+        .tickFormat(""));
 }
 
 updateChart(event) {
@@ -193,7 +197,7 @@ updateGridlines(duration = 1000) {
     .duration(duration)
     .attr("transform", `translate(0,${this.height})`)
     .call(d3.axisBottom(this.x)
-      .ticks(d3.timeMinute.every(15))
+      .ticks(d3.timeMinute.every(30))
       .tickSize(-this.height)
       .tickFormat(""));
 
@@ -206,33 +210,44 @@ updateGridlines(duration = 1000) {
       .tickSize(-this.width)
       .tickFormat(""));
 }
+
+
+//Filter the data to the current time of the video
+dataFilter(){
+  // Calculate the number of data points to display based on the progress
+  const totalDataPoints = this.data ? this.data.length : 0;
+  const dataPointsToShow = Math.floor(this.progress * totalDataPoints);
+
+  // Filter the data to show only the portion corresponding to the video's progress
+  return this.data.slice(0, dataPointsToShow);
+}
+
+updateLinePos(curDat){
+  // Update the line chart
+  this.line.select(".line").datum(curDat)
+  .attr("d", d3.line()
+      .x(d => this.x(d.Time))
+      .y(d => this.y(d.data))
+  );
+
+  // Update the plane icon position
+  if (curDat.length > 0) {
+  const latestData = curDat[curDat.length - 1];
+  this.planeIcon
+      .attr("x", this.x(latestData.Time) - this.iconWidth / 2)
+      .attr("y", this.y(latestData.data) - this.iconWidth / 2);
+  }
+}
+
 initVideoSync() {
   this.video.addEventListener('timeupdate', () => {
       const currentTime = this.video.currentTime;
       const duration = this.video.duration;
-      const progress = currentTime / duration;
-
-      // Calculate the number of data points to display based on the progress
-      const totalDataPoints = this.data.length;
-      const dataPointsToShow = Math.floor(progress * totalDataPoints);
+      this.progress = currentTime / duration;
 
       // Filter the data to show only the portion corresponding to the video's progress
-      const currentData = this.data.slice(0, dataPointsToShow);
-
-      // Update the line chart
-      this.line.select(".line").datum(currentData)
-          .attr("d", d3.line()
-              .x(d => this.x(d.Time))
-              .y(d => this.y(d.data))
-          );
-
-      // Update the plane icon position
-      if (currentData.length > 0) {
-          const latestData = currentData[currentData.length - 1];
-          this.planeIcon
-              .attr("x", this.x(latestData.Time) - this.iconWidth / 2)
-              .attr("y", this.y(latestData.data) - this.iconWidth / 2);
-      }
+      const currentData = this.dataFilter()
+      this.updateLinePos(currentData);
   });
 }
 updateDimensions() {
@@ -249,7 +264,7 @@ updateAxes() {
   // Update the x-axis
   this.xAxis
     .attr("transform", `translate(0,${this.height})`)
-    .call(this.axis(this.x, 'bottom').ticks(d3.utcMinute.every(15)));
+    .call(this.axis(this.x, 'bottom').ticks(d3.utcMinute.every(30)));
   
   // Update the y-axis
   this.yAxis.call(d3.axisLeft(this.y).ticks(this.yticks));
@@ -292,9 +307,79 @@ onResize() {
         .call(this.brush);
   
 }
+addNewData() {
+  // Update the chart with the new data
+  this.updateDimensions();
+  this.updateAxes();
+  this.updateGridlines(0);
+  this.svg.select(".y-axis-label").text(this.variable);
+  const currentData = this.dataFilter()
+  this.updateLinePos(currentData);
+  this.brush.extent([[0, 0], [this.width, this.height]]);
+  this.svg.select(".brush").call(this.brush);
+}
+updateDataSource(dataSource, variable) {
+  this.json = dataSource;
+  this.variable = variable;
+  // Fetch new data and update the chart
+  fetch(this.json)
+    .then(response => response.json())
+    .then(data => {
+        const timeArray = data.coords.Time.data;
+        const dataArray = data.data;
+        const parseTime = d3.utcParse("%Y-%m-%dT%H:%M:%S");
+        this.data= dataArray.map((value, index) => ({
+            Time: parseTime(timeArray[index]),
+            data: +value
+        }));
+    this.addNewData();
+    }).catch(error => {
+        console.error('Error fetching the JSON file:', error);
+  });
+}
 
 
 }
 
-const chart1 = new LineChart("#my_dataviz", "myVideo", "ATXtf06.json", 'Temperature (C)');
-const chart2 = new LineChart("#chart2", "myVideo", "WICtf06.json", "Wind Speed (m/s)");
+document.getElementById('variable-select').addEventListener('change', function() {
+  const selectedVariable = this.value;
+  updateChartVariable(selectedVariable);
+});
+
+let flight = 'TF06';
+
+document.getElementById('flight-select').addEventListener('change', function() {
+  flight= this.value;
+  count =0;
+  for (const key in variableDataSources) {
+    updateChartFlight(flight,key,charts[count]);
+    count++;
+  }
+});
+
+
+
+function updateChartFlight(flight, variable,chart) {
+  const baseFileName = variableDataSources[variable];
+  if (baseFileName) {
+    const dataSource = `${baseFileName}${flight.toLowerCase()}.json`;
+    // Update the chart with the new data source
+    chart.updateDataSource(dataSource, variable);
+  } else {
+    console.error('Data source not found for variable:', variable);
+  }
+}
+
+function updateChartVariable(variable) {
+  const baseFileName = variableDataSources[variable];
+  if (baseFileName) {
+    const dataSource = `${baseFileName}${flight.toLowerCase()}.json`;
+    // Update the chart with the new data source
+    charts[0].updateDataSource(dataSource, variable);
+  } else {
+    console.error('Data source not found for variable:', variable);
+  }
+}
+let charts = [];
+charts.push(new LineChart("#my_dataviz", "myVideo", `ATX${flight.toLowerCase()}.json`, 'Temperature (C)'))
+charts.push(new LineChart("#chart2", "myVideo", `WIC${flight.toLowerCase()}.json`, "Wind Speed (m/s)"));

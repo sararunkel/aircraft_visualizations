@@ -14,9 +14,13 @@
     <div id="video-container">
         <div id="video-title">
             <h2 class="font1">CAESAR <span class="font2">TF06</span></h2>
+            <label for="flight-select" class="font1">Select Flight:</label>
+            <select id="flight-select" class="font2"></select>
+            <label for="variable-select" class="font1">Select Variable:</label>
+            <select id="variable-select" class="font2"></select>
         </div>
         <video id="myVideo" controls>
-            <source src="tf06.mp4" type="video/mp4">
+            <source src="rf04.mp4" type="video/mp4">
             Your browser does not support the video tag.
         </video>        
         <div id="map">
@@ -25,7 +29,6 @@
             <!-- <h1>Project: CAESAR</h1> -->
         </div>
         </div>
-        
     </div>
     <div id="overlay">
         <button id="playButton">Play Video</button>
@@ -38,13 +41,12 @@
         <div id="image-container">
             <div id="F2DS"> </div>
             <div id="HVPS"> </div>
-        </div>    
-            
-        
+        </div>
     </main>
-<script src="mapmap.js"></script>
 
+<script src="chartselect.js"></script>
 <script src="animatedchart.js"></script>
+<script src="mapmap.js"></script>
 <script>
     // Ensure the video starts playing as soon as the page is fully loaded
     window.addEventListener('load', function() {

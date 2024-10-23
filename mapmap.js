@@ -12,6 +12,8 @@ class FlightMap{
         this.planePath;
         this.planeMarker;
         this.OAP = OAP;
+        this.curTime;
+        this.updateVideoSource(flight);
         this.initMap();
         this.loadFlightData();
         if (OAP){
@@ -47,6 +49,25 @@ loadFlightData(){
     });
 
 }
+//update flight data
+updateFlightData(){
+    fetch(`track${this.flight.toLowerCase()}.json`)
+    .then(response => response.json())
+    .then(data => {
+        const timeArray = data.coords.Time.data;
+        const latitudeArray = data.data_vars.GGLAT.data;
+        const longitudeArray = data.data_vars.GGLON.data;
+        const parseTime = d3.utcParse("%Y-%m-%dT%H:%M:%S");
+        this.data= timeArray.map((time, index) => ({
+            Time: parseTime(time),
+            latitude: +latitudeArray[index],
+            longitude: +longitudeArray[index]
+        }));
+        this.fitMapBounds();
+    }).catch(error => {
+        console.error('Error fetching the JSON file:', error);
+    });
+}
 initializePlaneMarker() {
     const planeIcon = L.icon({
         iconUrl: this.planeIconPNG, // Replace with the path to your plane icon
@@ -66,9 +87,26 @@ fitMapBounds() {
 }
 updateFlight(flight) {
     this.flight = flight;
-    this.loadFlightData();
+    this.updateVideoSource(flight);
+    this.OAP_imagery.updateFlight(flight);
+    this.updateFlightData();
+    this.updateTitle(flight);
 }
-
+updateOAP(){
+    this.OAP_imagery.updateImage(this.curTime, 'F2DS');
+    this.OAP_imagery.updateImage(this.curTime, 'HVPS');
+}
+updateVideoSource(flight) {
+    const video = document.getElementById('myVideo');
+    video.src = `${flight.toLowerCase()}.mp4`;
+    video.load(); // Reload the video with the new source
+    //play the video
+    video.play();
+}
+updateTitle(flight) {
+    const flightTextElement = document.querySelector('#video-title .font2');
+    flightTextElement.textContent = flight;
+}
 addVideoEventListener(videoElementId) {
     const video = document.getElementById(videoElementId);
     video.addEventListener('timeupdate', () => {
@@ -77,7 +115,7 @@ addVideoEventListener(videoElementId) {
         const progress = currentTime / duration;
 
         // Calculate the number of data points to display based on the progress
-        const totalDataPoints = this.data.length;
+        const totalDataPoints = this.data ? this.data.length : 0;
         const dataPointIndex = Math.floor(progress * totalDataPoints);
 
         // Ensure the index is within bounds
@@ -85,7 +123,7 @@ addVideoEventListener(videoElementId) {
             const nextPoint = this.data[dataPointIndex];
             //const prevPoint = dataPointIndex > 0 ? this.data[dataPointIndex - 1] : nextPoint;
             //const bearing = this.calculateBearing(prevPoint.latitude, prevPoint.longitude, nextPoint.latitude, nextPoint.longitude);
-
+            this.curTime = nextPoint.Time;
             // Rotate the plane icon
             //const planeIconElement = document.querySelector('.plane-icon');
             //planeIconElement.style.transform = `rotate(${bearing}deg)`;
@@ -95,8 +133,7 @@ addVideoEventListener(videoElementId) {
 
             // Print the time value to the screen
             document.getElementById('current-time').textContent = nextPoint.Time.toISOString();
-            this.OAP_imagery.updateImage(nextPoint.Time, 'F2DS');
-            this.OAP_imagery.updateImage(nextPoint.Time, 'HVPS');
+            this.updateOAP();
         }
     });
 }
@@ -107,13 +144,14 @@ class OAP_imagery{
         this.imageFilenames =[];
         this.getFilenames(this.flight);
 }
+updateFlight(flight) {
+    this.flight = flight;}
 
 getFilenames(flight) {
     fetch(`${flight}.txt`)
         .then(response => response.text())
         .then(data => {
             this.imageFilenames = data.split('\n').filter(Boolean);
-            console.log(this.imageFilenames);
         })
         .catch(error => {
             console.error('Error fetching filenames:', error);
@@ -161,25 +199,8 @@ flightMap.addVideoEventListener('myVideo');
 document.getElementById('flight-select').addEventListener('change', function() {
     flight= this.value;
     console.log(flight)
-    getFilenames(flight).then(filenames => {
-        imageFilenames = filenames;
-        //console.log(imageFilenames);
-    });
+    flightMap.updateFlight(flight);
+    flightMap.OAP_imagery.getFilenames(flight)
+    //flightMap.updateOAP();
     //update the json file to the selected flight
-    fetch(`track${flight.toLowerCase()}.json`)
-    .then(response => response.json())
-    .then(data => {
-        const timeArray = data.coords.Time.data;
-        const latitudeArray= data.data_vars.GGLAT.data;
-        const longitudeArray= data.data_vars.GGLON.data;
-        const parseTime = d3.utcParse("%Y-%m-%dT%H:%M:%S");
-        const parsedData = timeArray.map((time, index) => ({
-            Time: parseTime(time),
-            latitude: +latitudeArray[index],
-            longitude: +longitudeArray[index]
-            }));
-            updatePlaneMarker(parsedData, planeMarker);
-        // Initialize the plane marker
-    });
-
 });
