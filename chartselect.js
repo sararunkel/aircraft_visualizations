@@ -25,8 +25,29 @@ function populateDropdown(options) {
 
 // Example options array
 const variableDataSources = {
-    'Temperature (C)': 'ATX',
-    'Wind Speed (m/s)': 'WIC',
+    'Temperature': 'ATX',
+    'Wind Speed': 'WIC',
+    'Wind Direction': 'WDC',
+    'Fast Response Ozone Mixing Ratio': 'FO3C_ACOM',
+    'Dew Point Temperature': 'DPXC',
+    'Raw Static Pressure, Fuselage': 'PSX',
+    'Wind Vector, Vertical Gust Component':'WIX',
+    'Horizontal Wind Speed':'WSC',
+    'Cloud Droplet Concentration':'CONCD_LWI',
+    // Add more key-value pairs as needed
+};
+
+const UNITS = {
+    'Temperature': '°C',
+    'Wind Speed': 'm/s',
+    'Wind Direction': '°',
+    'Fast Response Ozone Mixing Ratio': 'ppb',
+    'Dew Point Temperature': '°C',
+    'Raw Static Pressure, Fuselage': 'hPa',
+    'Wind Vector, Vertical Gust Component':'m/s',
+    'Horizontal Wind Speed':'m/s',
+    'Cloud Droplet Concentration':'#/cm^3',
+
     // Add more key-value pairs as needed
 };
 const flightList = [

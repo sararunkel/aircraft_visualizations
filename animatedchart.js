@@ -1,10 +1,12 @@
 class LineChart {
-  constructor(svgSelector, videoSelector, datajson, variable) {
+  constructor(svgSelector, videoSelector, data, long_name, showXLabel=false) {
       this.svg = d3.select(svgSelector);
       this.selector = svgSelector;
       this.video = document.getElementById(videoSelector);
-      this.json = datajson;
-      this.variable = variable;
+      this.data = data;
+      this.showXLabel = showXLabel;
+      this.long_name = long_name;
+      this.variable= variableDataSources[long_name]
       this.planeIconUrl = 'plane.png';
       this.updateDimensions();
       this.iconWidth = 16;
@@ -31,18 +33,7 @@ class LineChart {
           .attr("height", this.height + this.margin.top + this.margin.bottom)
           .append("g")
           .attr("transform", `translate(${this.margin.left},${this.margin.top})`);
-    d3.json(this.json).then((DATA) => {
-            //console.log(DATA);
-              // Parse the date and value from the JSON
-              // Extract the Time and data arrays
-              const timeArray = DATA.coords.Time.data;
-              const dataArray = DATA.data;
-              const parseTime = d3.utcParse("%Y-%m-%dT%H:%M:%S");
-              // Transform the data into an array of objects
-              this.data = dataArray.map((value, index) => ({
-                Time: parseTime(timeArray[index]),
-                data: +value
-              }));
+
       this.createAxes();
       this.addGridLabels();
       this.initVideoSync();
@@ -51,7 +42,7 @@ class LineChart {
       // Add brushing
           // A function that updates the chart for given boundaries
       this.brush = d3.brushX()                   // Add the brush feature using the d3.brush function
-        .extent( [ [0,0], [this.width,this.height] ] )  // initialise the brush area: start at 0,0 and finishes at width,height: it means I select the whole graph area
+        .extent( [ [0,0], [this.width,this.height] ] )  // initialize the brush area: start at 0,0 and finishes at width,height: it means I select the whole graph area
         .on("end", this.updateChart.bind(this))               // Each time the brush selection changes, trigger the 'updateChart' function
       // Add a clipPath: everything out of this area won't be drawn.
       this.clip = this.svg.append("defs").append("svg:clipPath")
@@ -72,8 +63,9 @@ class LineChart {
           .attr("stroke", "steelblue")
           .attr("stroke-width", 1.5)
           .attr("d", d3.line()
+              .defined(d => d[this.variable] !== null) 
               .x(d => this.x(d.Time))
-              .y(d => this.y(d.data))
+              .y(d => this.y(d[this.variable]))
           );
       // Add the brushing
       this.line.append("g")
@@ -97,13 +89,13 @@ class LineChart {
       this.line.select("path")
       .transition()
       .attr("d", d3.line()
+        .defined(d => d[this.variable] !== null) 
         .x(d => this.x(d.Time))
-        .y(d => this.y(d.data))
+        .y(d => this.y(d[this.variable]))
       );
       this.updateGridlines(0);
     });
 
-  }); //end of d3.json
 }
 idled() {
   this.idleTimeout = null;
@@ -111,7 +103,7 @@ idled() {
 createAxes() {
 // Add Y axis
   this.y = d3.scaleLinear()
-    .domain([d3.min(this.data, d => d.data), d3.max(this.data, d => d.data)])
+    .domain([d3.min(this.data, d => d[this.variable]), d3.max(this.data, d => d[this.variable])])
     .range([this.height, 0]);
   this.yAxisGenerator = this.axis(this.y, 'left')
     .ticks(this.yticks);
@@ -132,25 +124,28 @@ createAxes() {
 }
 
 addGridLabels() {
-  // Add gridlines
+  // Add grid lines
   const makeXGridlines = () => d3.axisBottom(this.x).ticks(d3.timeMinute.every(30));
   const makeYGridlines = () => d3.axisLeft(this.y).ticks(this.yticks);
 
    // Add X axis label
-  this.svg.append("text")
-    .attr("class", "x-axis-label")
-    .attr("text-anchor", "middle")
-    .attr("x", this.width / 2)
-    .attr("y", this.height + this.margin.top + 20)
-    .text("Time");
+  if (this.showXLabel) {
+    this.svg.append("text")
+      .attr("class", "x-axis-label")
+      .attr("text-anchor", "middle")
+      .attr("x", this.width / 2)
+      .attr("y", this.height + this.margin.top + 20)
+      .text("Time");
+    }
   // Add Y axis label
   this.svg.append("text")
     .attr("class", "y-axis-label")
     .attr("text-anchor", "middle")
     .attr("transform", "rotate(-90)")
-    .attr("y", -this.margin.left + 20)
+    .attr("font-size", "12px")
+    .attr("y", -this.margin.left+20)
     .attr("x", - this.height / 2 )
-    .text(this.variable);
+    .text(UNITS[this.long_name]);
   // Add X gridlines
   this.svg.append("g")
     .attr("class", "x-grid grid")
@@ -165,7 +160,16 @@ addGridLabels() {
     .call(makeYGridlines()
         .tickSize(-this.width)
         .tickFormat(""));
+
+  this.svg.append("text")
+    .attr("class", "chart-title")
+    .attr("text-anchor", "middle")
+    .attr("x", this.width / 2)
+    .attr("y", -2)
+    .attr("font-size", "12px")
+    .text(this.long_name);
 }
+
 
 updateChart(event) {
   const extent = event.selection;
@@ -180,13 +184,14 @@ updateChart(event) {
   }
 
   // Update axis and line position
-  this.xAxis.transition().duration(1000).call(this.axis(this.x, 'bottom').ticks(this.yticks));
+  this.xAxis.transition().duration(1000).call(this.axis(this.x, 'bottom').ticks(d3.timeMinute.every(30)));
   this.line.select("path")
   .transition()
   .duration(1000)
   .attr("d", d3.line()
+    .defined(d => d[this.variable] !== null) 
     .x(d => this.x(d.Time))
-    .y(d => this.y(d.data))
+    .y(d => this.y(d[this.variable]))
   );
   this.updateGridlines();
 };
@@ -219,15 +224,16 @@ dataFilter(){
   const dataPointsToShow = Math.floor(this.progress * totalDataPoints);
 
   // Filter the data to show only the portion corresponding to the video's progress
-  return this.data.slice(0, dataPointsToShow);
+  return this.data.slice(0, dataPointsToShow).filter(d => !isNaN(d[this.variable]));
 }
 
 updateLinePos(curDat){
   // Update the line chart
   this.line.select(".line").datum(curDat)
   .attr("d", d3.line()
+      .defined(d => d[this.variable] !== null)
       .x(d => this.x(d.Time))
-      .y(d => this.y(d.data))
+      .y(d => this.y(d[this.variable]))
   );
 
   // Update the plane icon position
@@ -235,7 +241,7 @@ updateLinePos(curDat){
   const latestData = curDat[curDat.length - 1];
   this.planeIcon
       .attr("x", this.x(latestData.Time) - this.iconWidth / 2)
-      .attr("y", this.y(latestData.data) - this.iconWidth / 2);
+      .attr("y", this.y(latestData[this.variable]) - this.iconWidth / 2);
   }
 }
 
@@ -251,16 +257,23 @@ initVideoSync() {
   });
 }
 updateDimensions() {
-  this.margin = { top: 20, right: 20, bottom: 50, left: 50 };
+  if (this.showXLabel){ 
+    this.margin = { top: 20, right: 20, bottom: 50, left: 50 };
+  }
+  else {
+    this.margin = { top: 20, right: 20, bottom: 0, left: 50 };
+    
+  }
+  
   this.width = window.innerWidth/2 - this.margin.left - this.margin.right;
-  this.height = window.innerHeight / 4 - this.margin.top - this.margin.bottom;
+  this.height = window.innerHeight / 8 - this.margin.top //- this.margin.bottom;
   
 }
 updateAxes() {
   this.x.range([0, this.width]);
   this.y.range([this.height, 0]);
   this.x.domain(d3.extent(this.data, d => d.Time));
-  this.y.domain([d3.min(this.data, d => d.data), d3.max(this.data, d => d.data)]);
+  this.y.domain([d3.min(this.data, d => d[this.variable]), d3.max(this.data, d => d[this.variable])]);
   // Update the x-axis
   this.xAxis
     .attr("transform", `translate(0,${this.height})`)
@@ -293,8 +306,9 @@ onResize() {
   this.line.select("path")
     .transition()
     .attr("d", d3.line()
+    .defined(d => d[this.variable] !== null) 
       .x(d => this.x(d.Time))
-      .y(d => this.y(d.data))
+      .y(d => this.y(d[this.variable]))
     );
     
     
@@ -312,11 +326,18 @@ addNewData() {
   this.updateDimensions();
   this.updateAxes();
   this.updateGridlines(0);
-  this.svg.select(".y-axis-label").text(this.variable);
+  this.svg.select(".y-axis-label").text(UNITS[this.long_name]);
+  this.svg.select(".chart-title").text(this.long_name);
   const currentData = this.dataFilter()
   this.updateLinePos(currentData);
   this.brush.extent([[0, 0], [this.width, this.height]]);
   this.svg.select(".brush").call(this.brush);
+}
+updateData(newData, long_name) {
+  this.data = newData;
+  this.variable = variableDataSources[long_name];
+  this.long_name= long_name;
+  this.addNewData()
 }
 updateDataSource(dataSource, variable) {
   this.json = dataSource;
@@ -335,8 +356,12 @@ updateDataSource(dataSource, variable) {
     this.addNewData();
     }).catch(error => {
         console.error('Error fetching the JSON file:', error);
-  });
-}
+  });}
+  setVariable(long_name) {
+    this.variable = variableDataSources[long_name];
+    this.long_name = long_name;
+    this.addNewData();
+  }
 
 
 }
@@ -348,38 +373,85 @@ document.getElementById('variable-select').addEventListener('change', function()
 
 let flight = 'TF06';
 
-document.getElementById('flight-select').addEventListener('change', function() {
-  flight= this.value;
-  count =0;
-  for (const key in variableDataSources) {
-    updateChartFlight(flight,key,charts[count]);
-    count++;
-  }
-});
 
 
 
 function updateChartFlight(flight, variable,chart) {
-  const baseFileName = variableDataSources[variable];
-  if (baseFileName) {
-    const dataSource = `${baseFileName}${flight.toLowerCase()}.json`;
+  const dataSource = `${flight.toLowerCase()}.json`;
     // Update the chart with the new data source
-    chart.updateDataSource(dataSource, variable);
-  } else {
-    console.error('Data source not found for variable:', variable);
-  }
+  chart.updateData(dataSource, variable);
+ 
 }
 
 function updateChartVariable(variable) {
   const baseFileName = variableDataSources[variable];
   if (baseFileName) {
-    const dataSource = `${baseFileName}${flight.toLowerCase()}.json`;
-    // Update the chart with the new data source
-    charts[0].updateDataSource(dataSource, variable);
+
+    charts[0].setVariable(variable);
   } else {
     console.error('Data source not found for variable:', variable);
   }
 }
+function loadData(dataSource, callback) {
+  fetch(dataSource)
+    .then(response => response.text())
+    .then(text => {
+      const cleanedText = text.replace(/NaN/g, 'null'); // Replace NaN with null
+      const data = JSON.parse(cleanedText);
+      const timeArray = data.coords.Time.data;
+      const dataArray = data.data_vars;
+      const parseTime = d3.utcParse("%Y-%m-%dT%H:%M:%S");
+      const parsedData = timeArray.map((time, index) => {
+        const entry = { Time: parseTime(time) };
+        for (const variable in dataArray) {
+          let value = +dataArray[variable].data[index];
+          if (value === -32767) {
+            value = null; // Replace -32767 with null
+          }
+          entry[variable] = value;
+        }
+        return entry;
+      });
+      callback(parsedData);
+    })
+    .catch(error => {
+      console.error('Error fetching the JSON file:', error);
+    });
+}
+
+
+
 let charts = [];
-charts.push(new LineChart("#my_dataviz", "myVideo", `ATX${flight.toLowerCase()}.json`, 'Temperature (C)'))
-charts.push(new LineChart("#chart2", "myVideo", `WIC${flight.toLowerCase()}.json`, "Wind Speed (m/s)"));
+const initialData = `${flight.toLowerCase()}.json`;
+loadData(initialData, (parsedData) => {
+  charts.push(new LineChart("#my_dataviz", "myVideo", parsedData, 'Temperature'))
+  charts.push(new LineChart("#chart2", "myVideo", parsedData, "Wind Speed"));
+  charts.push(new LineChart("#chart3", "myVideo", parsedData, "Wind Direction"));
+  charts.push(new LineChart("#chart4", "myVideo", parsedData, "Fast Response Ozone Mixing Ratio", true));
+});
+//charts.push(new LineChart("#my_dataviz", "myVideo", `ATX${flight.toLowerCase()}.json`, 'Temperature (C)'))
+//charts.push(new LineChart("#chart2", "myVideo", `WIC${flight.toLowerCase()}.json`, "Wind Speed (m/s)"));
+
+console.log(charts);
+document.getElementById('flight-select').addEventListener('change', function() {
+  flight= this.value;
+  this.progress=1;
+  
+  const newDataSource = `${flight.toLowerCase()}.json`;
+  loadData(newDataSource, (parsedData) => {
+    let count = 0;
+    for (const long_name in variableDataSources) {
+      if (count < charts.length) {
+        console.log(long_name, count);
+        console.log(charts[count]);
+        charts[count].setVariable(long_name);
+        charts[count].updateData(parsedData,long_name);
+        charts[count].initVideoSync();
+        
+        count++;
+      } else {
+        console.error('Index out of bounds: charts array does not have enough elements');
+      }
+    }
+});
+});

@@ -71,7 +71,7 @@ main {
 }
 #myVideo {
     max-width: 100%;
-    height: 70%;
+    height: 50%;
     border: 2px solid lightgray; /* Add gray border */
     border-radius: 10px; /* Add rounded corners */
     background-color: #dedede27; /* Dark background color */
@@ -82,7 +82,7 @@ main {
     justify-content: space-between;
     max-width: 100%;
     height: 40%;
-    max-height: 60%;
+    max-height: 50%;
     overflow: hidden;
     border: 2px solid lightgray;
     border-radius: 10px; 
@@ -107,6 +107,7 @@ main {
 #graph-container {
     flex: 1;
     display: flex;
+    max-height: 60%;
     flex-direction: column;
     border: 2px solid lightgray; /* Add gray border */
     border-radius: 10px; /* Add rounded corners */
@@ -117,14 +118,18 @@ main {
 }
 #my_dataviz {
     flex: 1;
+    padding:0;
+    margin: 0;
 }
 #chart2{
     flex: 1;
+    padding:0;
+    margin: 0;
 }
 #map {
     flex: 1;
-    height: 30%;
-    max-height: 70%;
+    height: 50%;
+    max-height: 50%;
     border: 2px solid lightgray; /* Add gray border */
     border-radius: 10px; /* Add rounded corners */
     background-color: #dedede27; /* Dark background color */
@@ -181,4 +186,50 @@ main {
 
 #video-title h2 {
     margin: 5px 0; /* Adjust the margin to reduce space between h2 elements */
+}
+
+/* Style the dropdown container */
+select {
+    background-color: #dedede27;
+    border: 1px solid #ccc;
+    border-radius: 10px;
+    padding: 8px 12px;
+    font-size: 16px;
+    color: #333;
+    cursor: pointer;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+    -webkit-border-radius: 10px;
+    -moz-border-radius: 10px;
+    -ms-border-radius: 10px;
+    -o-border-radius: 10px;
+}
+/* Style the dropdown options */
+select option {
+    background-color: #dedede27; /* White background */
+    color: #333; /* Text color */
+}
+
+/* Style the dropdown on focus */
+select:focus {
+    border-color: #007bff3e; /* Blue border on focus */
+    box-shadow: 0 0 5px rgba(0, 123, 255, 0.5); /* Blue shadow on focus */
+    outline: none; /* Remove default outline */
+}
+
+/* Style the dropdown on hover */
+select:hover {
+    background-color: #e9e9e9; /* Slightly darker background on hover */
+}
+select option:hover {
+    background-color: #007bff; /* Blue background on hover */
+    color: #fff; /* White text on hover */
+}
+
+/* Style the label for the dropdown */
+label {
+    font-size: 16px; /* Font size */
+    color: #333; /* Text color */
+    margin-bottom: 8px; /* Space below the label */
+    display: block; /* Block display */
 }
